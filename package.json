@@ -9,18 +9,25 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.8.4",
+    "@fal-ai/server-proxy": "^1.1.2",
+    "adm-zip": "^0.5.16",
+    "gsap": "^3.14.2",
+    "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.7",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.9.3"
   }
 }
