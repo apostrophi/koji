@@ -18,13 +18,13 @@ interface ProgressBarProps {
 }
 
 const STATUS_MESSAGES: Record<string, string[]> = {
-  IN_QUEUE: ["queued, starting shortly"],
+  IN_QUEUE: ["in queue"],
   IN_PROGRESS: [
-    "analyzing composition",
-    "extending the scene",
-    "blending edges",
-    "rendering at target resolution",
-    "finalizing",
+    "analyzing",
+    "extending",
+    "blending",
+    "rendering",
+    "polishing",
   ],
 };
 
@@ -36,6 +36,7 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const [elapsed, setElapsed] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
+  const [isMessageFading, setIsMessageFading] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed((prev) => prev + 1), 1000);
@@ -45,8 +46,12 @@ export function ProgressBar({
   useEffect(() => {
     if (status !== "IN_PROGRESS") return;
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % STATUS_MESSAGES.IN_PROGRESS.length);
-    }, 3500);
+      setIsMessageFading(true);
+      setTimeout(() => {
+        setMessageIndex((prev) => (prev + 1) % STATUS_MESSAGES.IN_PROGRESS.length);
+        setIsMessageFading(false);
+      }, 300);
+    }, 4000);
     return () => clearInterval(interval);
   }, [status]);
 
@@ -65,9 +70,7 @@ export function ProgressBar({
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
     const secs = s % 60;
-    return mins > 0
-      ? `${mins}:${secs.toString().padStart(2, "0")}`
-      : `0:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const progressPercent =
@@ -87,26 +90,26 @@ export function ProgressBar({
         aria-label="Generation progress"
         aria-valuenow={Math.round(progressPercent)}
       >
-        {/* Shader container — clean, borderless */}
+        {/* Shader container — clean, cinematic */}
         <div
           className="relative w-full overflow-hidden"
           style={{
             aspectRatio: `${preset.widthRatio} / ${preset.heightRatio}`,
-            maxHeight: "65vh",
-            background: "#0A0A0A",
+            maxHeight: "60vh",
+            background: "#050505",
             borderRadius: "var(--radius-lg)",
-            boxShadow: "0 8px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04)",
+            boxShadow: "0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.03)",
           }}
         >
           <Suspense
             fallback={
-              <div className="absolute inset-0 animate-pulse-soft" style={{ background: "#0A0A0A" }}>
+              <div className="absolute inset-0" style={{ background: "#050505" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={originalImage.localPreviewUrl}
                   alt="Processing"
                   className="w-full h-full object-cover"
-                  style={{ filter: "grayscale(1) blur(20px) brightness(0.5)", opacity: 0.3 }}
+                  style={{ filter: "grayscale(1) blur(30px) brightness(0.3)", opacity: 0.4 }}
                 />
               </div>
             }
@@ -118,30 +121,55 @@ export function ProgressBar({
           </Suspense>
         </div>
 
-        {/* Metadata below — floating, minimal */}
-        <div className="flex items-center justify-between mt-3 px-1">
-          <p
-            className="type-mono-small transition-opacity duration-300"
-            style={{ color: "var(--text-tertiary)" }}
-            key={displayMessage}
-          >
-            {displayMessage}
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="type-mono-small" style={{ color: "var(--text-tertiary)" }}>
-              {targetRatio}
-            </span>
-            <span className="type-mono-small tabular-nums" style={{ color: "var(--text-tertiary)" }}>
+        {/* Cinematic metadata bar — centered, elegant */}
+        <div className="mt-6 flex flex-col items-center gap-4">
+          {/* Timer — hero element */}
+          <div className="flex items-center gap-6">
+            <span
+              className="tabular-nums font-light"
+              style={{
+                fontFamily: "var(--font-display), var(--font-mono)",
+                fontSize: "2rem",
+                letterSpacing: "-0.02em",
+                color: "var(--text-secondary)",
+                textShadow: "0 0 40px rgba(255, 255, 255, 0.1)",
+              }}
+            >
               {formatTime(elapsed)}
             </span>
           </div>
-        </div>
 
-        {elapsed > 30 && (
-          <p className="type-mono-small mt-3 text-center" style={{ color: "var(--text-tertiary)" }}>
-            Taking longer than expected. You can wait or try again.
-          </p>
-        )}
+          {/* Status + ratio — subtle, below */}
+          <div className="flex items-center gap-3">
+            <span
+              className="type-mono-small transition-all duration-300"
+              style={{
+                color: "var(--text-ghost)",
+                opacity: isMessageFading ? 0 : 1,
+                transform: isMessageFading ? "translateY(-4px)" : "translateY(0)",
+              }}
+            >
+              {displayMessage}
+            </span>
+            <span style={{ color: "var(--text-ghost)", opacity: 0.3 }}>·</span>
+            <span className="type-mono-small" style={{ color: "var(--text-ghost)" }}>
+              {targetRatio}
+            </span>
+          </div>
+
+          {/* Slow warning — soft, not alarming */}
+          {elapsed > 35 && (
+            <p
+              className="type-mono-small animate-fade-in"
+              style={{
+                color: "var(--text-ghost)",
+                marginTop: "8px",
+              }}
+            >
+              taking a moment — you can wait or try again
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -149,24 +177,33 @@ export function ProgressBar({
   // Fallback — simple glass progress
   return (
     <div
-      className="glass p-5 animate-fade-in-up"
+      className="glass p-6 animate-fade-in-up"
       role="progressbar"
       aria-label="Generation progress"
+      style={{ borderRadius: "var(--radius-lg)" }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="type-label" style={{ color: "var(--text-tertiary)" }}>
-          {status === "IN_QUEUE" ? "Queued" : "Generating"}
-        </span>
-        <span className="type-mono-small tabular-nums" style={{ color: "var(--text-tertiary)" }}>
+      <div className="flex flex-col items-center gap-4">
+        <span
+          className="tabular-nums font-light"
+          style={{
+            fontFamily: "var(--font-display), var(--font-mono)",
+            fontSize: "1.5rem",
+            letterSpacing: "-0.02em",
+            color: "var(--text-secondary)",
+          }}
+        >
           {formatTime(elapsed)}
         </span>
+        <div className="w-full max-w-[200px] progress-track">
+          <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+        <span
+          className="type-mono-small"
+          style={{ color: "var(--text-ghost)" }}
+        >
+          {displayMessage}
+        </span>
       </div>
-      <div className="progress-track mb-3">
-        <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
-      </div>
-      <p className="type-mono-small" style={{ color: "var(--text-tertiary)" }} key={displayMessage}>
-        {displayMessage}
-      </p>
     </div>
   );
 }

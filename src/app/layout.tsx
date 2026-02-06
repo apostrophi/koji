@@ -37,8 +37,8 @@ const gtStandardMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Henka \u2014 \u5909\u5316",
-  description: "Reshape images to any aspect ratio with AI",
+  title: "Kōji — 工事",
+  description: "Quick image tools — resize, effects, shaders",
 };
 
 export default function RootLayout({

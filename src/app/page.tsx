@@ -14,7 +14,9 @@ import { GenerateButton } from "@/components/generate-button";
 import { ProgressBar } from "@/components/progress-bar";
 import { RatioPreview } from "@/components/ratio-preview";
 import { GallerySheet } from "@/components/gallery-sheet";
+import { EffectsMode } from "@/components/effects-mode";
 import { useGlassShimmer } from "@/hooks/use-glass-shimmer";
+import { Sparkles } from "lucide-react";
 import type { AppPhase, AspectRatio, Resolution } from "@/types";
 
 const ExportPanel = lazy(() =>
@@ -37,6 +39,10 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
+  // Effects mode — overlay that can be entered from any state with an image
+  const [isEffectsMode, setIsEffectsMode] = useState(false);
+  const [effectResult, setEffectResult] = useState<string | null>(null);
+
   const {
     generatedImage, isGenerating, queueStatus, logs,
     error: generationError, generate, reset: resetGeneration,
@@ -51,15 +57,23 @@ export default function Home() {
   const savedGenerationRef = useRef<string | null>(null);
   const isViewingGalleryItem = selectedGalleryItem !== null;
 
+  // Phase logic: upload → configure → generating → review
   const phase: AppPhase = isViewingGalleryItem
     ? "review"
     : !uploadedImage
       ? "upload"
-      : generatedImage
+      : generatedImage || effectResult
         ? "review"
         : isGenerating
           ? "generating"
           : "configure";
+
+  // The current "working" image — what effects would be applied to
+  const currentImageUrl = effectResult
+    ?? generatedImage?.url
+    ?? (isViewingGalleryItem ? selectedGalleryItem.generatedImageUrl : null)
+    ?? uploadedImage?.localPreviewUrl
+    ?? null;
 
   // Extract colors from uploaded image → shift ambient gradient
   useEffect(() => {
@@ -112,6 +126,7 @@ export default function Home() {
     setPrompt("");
     setShowPrompt(false);
     setIsComparing(false);
+    setEffectResult(null);
     savedGenerationRef.current = null;
   }, [resetGeneration, selectGalleryItem]);
 
@@ -124,6 +139,8 @@ export default function Home() {
     setResolution("2K");
     setShowPrompt(false);
     setIsComparing(false);
+    setEffectResult(null);
+    setIsEffectsMode(false);
     savedGenerationRef.current = null;
   }, [resetGeneration, selectGalleryItem, clearImage]);
 
@@ -131,13 +148,29 @@ export default function Home() {
     (item: typeof galleryItems[number]) => {
       selectGalleryItem(item);
       resetGeneration();
+      setEffectResult(null);
     },
     [selectGalleryItem, resetGeneration]
   );
 
+  const handleEnterEffects = useCallback(() => {
+    setIsEffectsMode(true);
+  }, []);
+
+  const handleExitEffects = useCallback(() => {
+    setIsEffectsMode(false);
+  }, []);
+
+  const handleApplyEffect = useCallback((resultUrl: string) => {
+    setEffectResult(resultUrl);
+    setIsEffectsMode(false);
+  }, []);
+
   const reviewImage = isViewingGalleryItem
     ? { url: selectedGalleryItem.generatedImageUrl, width: null, height: null, fileSize: null, contentType: null }
-    : generatedImage;
+    : effectResult
+      ? { url: effectResult, width: null, height: null, fileSize: null, contentType: null }
+      : generatedImage;
 
   const reviewRatio = isViewingGalleryItem
     ? selectedGalleryItem.aspectRatio
@@ -156,7 +189,7 @@ export default function Home() {
   return (
     <div className="h-full w-full relative flex flex-col">
       {/* HUD — floats over everything */}
-      {phase !== "upload" && (
+      {phase !== "upload" && !isEffectsMode && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 pointer-events-none">
           <button
             onClick={handleStartOver}
@@ -166,7 +199,7 @@ export default function Home() {
             onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
           >
             <span className="type-label" style={{ color: "var(--text-secondary)" }}>
-              {"\u5909\u5316"}
+              工事
             </span>
           </button>
         </div>
@@ -174,7 +207,6 @@ export default function Home() {
 
       {/* ====================================================
           UPLOAD — The whole viewport is the drop zone.
-          Centered text, breathing dark canvas. That's it.
           ==================================================== */}
       {phase === "upload" && (
         <UploadZone
@@ -188,11 +220,11 @@ export default function Home() {
       )}
 
       {/* ====================================================
-          CONFIGURE — Image hero center, glass controls floating below
+          CONFIGURE — Resize controls
           ==================================================== */}
-      {!isViewingGalleryItem && phase === "configure" && uploadedImage && (
+      {!isViewingGalleryItem && phase === "configure" && uploadedImage && !isEffectsMode && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 animate-fade-in overflow-y-auto">
-          {/* Hero image — ratio preview extends fill zones without changing image size */}
+          {/* Hero image with ratio preview */}
           <div className="relative w-full max-w-[720px] mb-6">
             <RatioPreview uploadedImage={uploadedImage} selectedRatio={selectedRatio} />
             {/* File info badge */}
@@ -222,7 +254,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Floating control strip — glass panel with shimmer */}
+          {/* Resize controls */}
           <div
             className="glass glass-shimmer w-full max-w-[720px] animate-fade-in-up"
             style={{
@@ -237,10 +269,9 @@ export default function Home() {
               resolution={resolution}
             />
 
-            {/* Prompt toggle + Resolution + Generate — appear after ratio selected */}
+            {/* Prompt toggle + Resolution + Generate */}
             {selectedRatio && (
               <div className="mt-4 pt-4 animate-fade-in" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                {/* Prompt toggle link */}
                 {!showPrompt && (
                   <button
                     onClick={() => setShowPrompt(true)}
@@ -275,13 +306,27 @@ export default function Home() {
               </p>
             )}
           </div>
+
+          {/* Effects shortcut — skip resize, go straight to effects */}
+          <button
+            onClick={handleEnterEffects}
+            className="mt-4 flex items-center gap-2 cursor-pointer transition-all duration-200 group"
+            style={{ padding: "8px 16px" }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.6"; }}
+          >
+            <Sparkles size={14} strokeWidth={1.5} style={{ color: "var(--text-ghost)" }} />
+            <span className="type-mono-small" style={{ color: "var(--text-ghost)" }}>
+              or add effects without resizing
+            </span>
+          </button>
         </div>
       )}
 
       {/* ====================================================
-          GENERATING — Polaroid floats in the center of the void
+          GENERATING — Progress animation
           ==================================================== */}
-      {!isViewingGalleryItem && phase === "generating" && uploadedImage && (
+      {!isViewingGalleryItem && phase === "generating" && uploadedImage && !isEffectsMode && (
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="w-full max-w-[640px]">
             <ProgressBar
@@ -300,9 +345,9 @@ export default function Home() {
       )}
 
       {/* ====================================================
-          REVIEW — Image dominates. Export floats at bottom.
+          REVIEW — Image with export and effects options
           ==================================================== */}
-      {phase === "review" && reviewImage && reviewRatio && (
+      {phase === "review" && reviewImage && !isEffectsMode && (
         <Suspense
           fallback={
             <div className="flex-1 flex items-center justify-center">
@@ -311,7 +356,7 @@ export default function Home() {
           }
         >
           <div className="flex-1 flex flex-col items-center animate-fade-in overflow-y-auto">
-            {/* Top action bar — floating */}
+            {/* Top action bar */}
             <div className="w-full max-w-[960px] px-6 pt-16 pb-4 flex items-center justify-between">
               {isViewingGalleryItem ? (
                 <>
@@ -321,35 +366,57 @@ export default function Home() {
                     </span>
                     <span className="type-mono-small" style={{ color: "var(--text-tertiary)" }}>
                       {selectedGalleryItem.aspectRatio}
-                      <span style={{ opacity: 0.4 }}> &middot; </span>
+                      <span style={{ opacity: 0.4 }}> · </span>
                       {selectedGalleryItem.resolution}
                       {galleryOutputDims && (
                         <>
-                          <span style={{ opacity: 0.4 }}> &middot; </span>
-                          {selectedGalleryItem.originalWidth}&times;{selectedGalleryItem.originalHeight}
-                          <span style={{ opacity: 0.3 }}> &rarr; </span>
-                          {galleryOutputDims.width}&times;{galleryOutputDims.height}
+                          <span style={{ opacity: 0.4 }}> · </span>
+                          {selectedGalleryItem.originalWidth}×{selectedGalleryItem.originalHeight}
+                          <span style={{ opacity: 0.3 }}> → </span>
+                          {galleryOutputDims.width}×{galleryOutputDims.height}
                         </>
                       )}
                     </span>
                   </div>
-                  <button
-                    onClick={handleStartOver}
-                    className="type-mono-small cursor-pointer transition-colors"
-                    style={{ color: "var(--text-tertiary)" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
-                  >
-                    New image
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={handleEnterEffects}
+                      className="flex items-center gap-2 cursor-pointer transition-colors"
+                      style={{ color: "var(--text-tertiary)" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
+                    >
+                      <Sparkles size={14} strokeWidth={1.5} />
+                      <span className="type-mono-small">Effects</span>
+                    </button>
+                    <button
+                      onClick={handleStartOver}
+                      className="type-mono-small cursor-pointer transition-colors"
+                      style={{ color: "var(--text-tertiary)" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
+                    >
+                      New image
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
                   <span className="type-mono-small" style={{ color: "var(--text-tertiary)" }}>
-                    {selectedRatio}
+                    {effectResult ? "with effects" : reviewRatio}
                   </span>
                   <div className="flex items-center gap-4">
-                    {uploadedImage && (
+                    <button
+                      onClick={handleEnterEffects}
+                      className="flex items-center gap-2 cursor-pointer transition-colors"
+                      style={{ color: "var(--text-tertiary)" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
+                    >
+                      <Sparkles size={14} strokeWidth={1.5} />
+                      <span className="type-mono-small">{effectResult ? "Edit effects" : "Add effects"}</span>
+                    </button>
+                    {uploadedImage && !effectResult && (
                       <button
                         onClick={() => setIsComparing(!isComparing)}
                         className="type-mono-small cursor-pointer transition-colors"
@@ -383,7 +450,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Hero result image — or side-by-side compare */}
+            {/* Hero result image */}
             {isComparing && uploadedImage ? (
               <div className="w-full max-w-[960px] px-6 grid grid-cols-2 gap-4">
                 <div className="flex flex-col">
@@ -405,7 +472,7 @@ export default function Home() {
                     />
                   </div>
                   <p className="type-mono-small mt-2" style={{ color: "var(--text-tertiary)" }}>
-                    {uploadedImage.width} &times; {uploadedImage.height}
+                    {uploadedImage.width} × {uploadedImage.height}
                   </p>
                 </div>
                 <div className="flex flex-col">
@@ -441,7 +508,7 @@ export default function Home() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={reviewImage.url}
-                    alt={`Resized to ${reviewRatio}`}
+                    alt={reviewRatio ? `Resized to ${reviewRatio}` : "Result"}
                     style={{ maxHeight: "calc(100vh - 220px)", objectFit: "contain" }}
                     className="w-full h-auto block"
                   />
@@ -449,18 +516,29 @@ export default function Home() {
               </div>
             )}
 
-            {/* Export panel — glass, below image */}
+            {/* Export panel */}
             <div className="w-full max-w-[960px] px-6 py-6">
-              <ExportPanel generatedImageUrl={reviewImage.url} aspectRatio={reviewRatio} />
+              <ExportPanel generatedImageUrl={reviewImage.url} aspectRatio={reviewRatio ?? "1:1"} />
             </div>
           </div>
         </Suspense>
       )}
 
       {/* ====================================================
-          GALLERY TRAY — bottom edge, horizontal thumbnails
+          EFFECTS MODE — Full-screen overlay for editing effects
           ==================================================== */}
-      {hasGallery && (
+      {isEffectsMode && currentImageUrl && (
+        <EffectsMode
+          imageUrl={currentImageUrl}
+          onClose={handleExitEffects}
+          onApply={handleApplyEffect}
+        />
+      )}
+
+      {/* ====================================================
+          GALLERY — Right panel
+          ==================================================== */}
+      {hasGallery && !isEffectsMode && (
         <GallerySheet
           items={galleryItems}
           selectedItemId={selectedGalleryItem?.id ?? null}
