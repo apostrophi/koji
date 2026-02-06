@@ -11,6 +11,11 @@
   "dependencies": {
     "@fal-ai/client": "^1.8.4",
     "@fal-ai/server-proxy": "^1.1.2",
+    "@jsquash/avif": "^2.1.1",
+    "@jsquash/jpeg": "^1.6.0",
+    "@jsquash/oxipng": "^2.3.0",
+    "@jsquash/png": "^3.1.1",
+    "@jsquash/webp": "^1.5.0",
     "@paper-design/shaders-react": "^0.0.71",
     "adm-zip": "^0.5.16",
     "gsap": "^3.14.2",

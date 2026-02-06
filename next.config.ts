@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
+  // Use empty turbopack config to silence warning - WASM works natively in Turbopack
+  turbopack: {},
   images: {
     remotePatterns: [
       {
@@ -58,12 +60,13 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               // Next.js requires 'unsafe-inline' for inline scripts (RSC payloads).
               // In dev, Turbopack also needs 'unsafe-eval' for HMR.
-              `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+              // blob: needed for WASM workers
+              `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:${isDev ? " 'unsafe-eval'" : ""}`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://*.fal.media https://fal.media https://v3.fal.media https://storage.googleapis.com",
               "font-src 'self'",
               // In dev, Turbopack HMR uses WebSocket connections
-              `connect-src 'self' https://*.fal.media https://fal.media https://v3.fal.media https://storage.googleapis.com${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
+              `connect-src 'self' blob: https://*.fal.media https://fal.media https://v3.fal.media https://storage.googleapis.com${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
