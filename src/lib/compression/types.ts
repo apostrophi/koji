@@ -1,4 +1,4 @@
-import type { ImageFormat, CompressionMode } from "@/lib/codecs";
+import type { ImageFormat, CompressionMode } from "@/lib/codecs/types";
 
 export interface CompressionSettings {
   mode: CompressionMode;

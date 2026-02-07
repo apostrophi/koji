@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { ImageFormat, CompressionMode } from "@/lib/codecs";
+import type { ImageFormat, CompressionMode } from "@/lib/codecs/types";
 import type { CompressionResult } from "@/lib/compression";
 
 export interface CompressionState {
@@ -44,8 +44,8 @@ export function useCompression(): UseCompressionReturn {
       setResult(null);
 
       try {
-        // Dynamically import to enable code splitting
-        const { compressFromUrl } = await import("@/lib/compression/compress");
+        // Use native Canvas API compression (browser-native, no WASM)
+        const { compressFromUrl } = await import("@/lib/compression/compress-native");
 
         const compressionResult = await compressFromUrl(
           imageUrl,

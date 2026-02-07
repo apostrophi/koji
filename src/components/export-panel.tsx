@@ -7,7 +7,7 @@ import { ASPECT_RATIO_PRESETS, getResolutionDimensions } from "@/lib/aspect-rati
 import { downloadBlob } from "@/lib/download";
 import { estimateSize } from "@/lib/compression";
 import type { AspectRatio, Resolution } from "@/types";
-import type { ImageFormat, CompressionMode } from "@/lib/codecs";
+import type { ImageFormat, CompressionMode } from "@/lib/codecs/types";
 
 interface ExportPanelProps {
   generatedImageUrl: string;
