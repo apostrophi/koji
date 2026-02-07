@@ -5,6 +5,35 @@ const isDev = process.env.NODE_ENV === "development";
 const nextConfig: NextConfig = {
   // Use empty turbopack config to silence warning - WASM works natively in Turbopack
   turbopack: {},
+
+  // Webpack config for WASM support in production builds
+  webpack: (config, { isServer }) => {
+    // Enable async WebAssembly
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Fix for WASM modules in client-side code
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+      };
+    }
+
+    // Handle .wasm files
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: "webassembly/async",
+    });
+
+    return config;
+  },
+
+  // Output standalone for better Vercel compatibility
+  output: "standalone",
   images: {
     remotePatterns: [
       {
